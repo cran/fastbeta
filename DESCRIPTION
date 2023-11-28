@@ -1,6 +1,6 @@
 Package: fastbeta
-Version: 0.1.0
-Date: 2023-08-22
+Version: 0.1.1
+Date: 2023-11-28
 Title: Fast Estimation of Time-Varying Infectious Disease Transmission
         Rates
 Description: Methods for estimating time-varying infectious disease
@@ -15,12 +15,13 @@ Authors@R:
 	         email = "jaganmn@mcmaster.ca",
 	         role = c("aut", "cre"),
 	         comment = c(ORCID = "0000-0002-3542-2938")))
-Depends: R (>= 4.2.0)
+Depends: R (>= 4.3.0)
 Imports: adaptivetau, deSolve, graphics, stats
 Suggests: grDevices, tools, utils
+BuildResaveData: no
 NeedsCompilation: yes
-Packaged: 2023-08-25 17:54:56 UTC; mikael
+Packaged: 2023-11-28 06:33:40 UTC; mikael
 Author: Mikael Jagan [aut, cre] (<https://orcid.org/0000-0002-3542-2938>)
 Maintainer: Mikael Jagan <jaganmn@mcmaster.ca>
 Repository: CRAN
-Date/Publication: 2023-08-28 11:10:02 UTC
+Date/Publication: 2023-11-28 07:10:06 UTC
