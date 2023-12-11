@@ -7,7 +7,7 @@ function (series, constants, ...)
 		ncol(series) == 3L
 		min(0, series, na.rm = TRUE) >= 0
 		is.double(constants)
-		length(constants) == 3L
+		length(constants) == 5L
 		is.finite(constants)
 		all(constants >= 0)
 	})
@@ -19,6 +19,6 @@ function (series, constants, ...)
 	X <- .Call(R_fastbeta, series, constants)
 	oldClass(X) <- oldClass(series)
 	tsp(X) <- tsp(series)
-	dimnames(X) <- list(NULL, c("beta", "S", "I"))
+	dimnames(X) <- list(NULL, c("S", "I", "R", "beta"))
 	X
 }

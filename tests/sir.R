@@ -3,7 +3,7 @@ library(    stats, pos = "package:base", verbose = FALSE)
 library(    utils, pos = "package:base", verbose = FALSE)
 
 library(fastbeta)
-options(warn = 2L, error = recover)
+options(warn = 2L, error = if (interactive()) recover)
 
 beta <- function (t, a = 1e-01, b = 1e-05)
 	b * (1 + a * cospi(t / 26))
@@ -13,7 +13,7 @@ mu <- function (t) 1e-03
 S0 <- 5e+04
 I0 <- 1e+03
 R0 <- 1e+06 - S0 - I0
-constants <- c(gamma = 0.5, S0 = S0, I0 = I0, R0 = R0)
+constants <- c(S0 = S0, I0 = I0, R0 = R0, gamma = 0.5, delta = 0)
 
 n <- 250L
 prob <- 0.1

@@ -1,6 +1,6 @@
 \name{deconvolve}
 \alias{deconvolve}
-\title{Richardson-Lucy deconvolution}
+\title{Richardson-Lucy Deconvolution}
 \description{
 Performs a modified Richardson-Lucy iteration for the purpose
 of estimating incidence from reported incidence or mortality,
@@ -62,6 +62,7 @@ time series.
 ## for R_DEFAULT_PACKAGES=NULL
 library(   stats, pos = "package:base", verbose = FALSE)
 library(graphics, pos = "package:base", verbose = FALSE)
+library(   utils, pos = "package:base", verbose = FALSE)
 }
 set.seed(2L)
 n <- 200L
@@ -83,8 +84,16 @@ str(D1 <- deconvolve(x, prob, delay, complete =  TRUE))
 
 matplot(-(d - 1L):n,
         cbind(x0, c(rep.int(NA, d), x), prob * D0[["value"]], p * ans),
-        type = c("p", "p", "p", "l"), pch = c(16L, 1L, 16L, NA),
-        lwd = c(NA, NA, NA, 3L), col = c(1L, 1L, 2L, 4L))
+        type = c("p", "p", "p", "l"),
+        col = c(1L, 1L, 2L, 4L), pch = c(16L, 1L, 16L, NA),
+        lty = c(0L, 0L, 0L, 1L), lwd = c(NA, NA, NA, 3L),
+        xlab = "time", ylab = "count")
+legend("topleft", NULL,
+       c("actual", "actual+delay", "actual+delay+deconvolution", "p*h"),
+       col = c(1L, 1L, 2L, 4L), pch = c(16L, 1L, 16L, NA),
+       lty = c(0L, 0L, 0L, 1L), lwd = c(NA, NA, NA, 3L),
+       bty = "n")
+
 plot(0L:D1[["iter"]], D1[["chisq"]], xlab = "iterations", ylab = quote(chi^2))
 abline(h = 1, lty = 2L)
 }

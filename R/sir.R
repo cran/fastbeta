@@ -14,7 +14,7 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 		is.function(mu)
 		!is.null(formals(mu))
 		is.double(constants)
-		length(constants) == 4L
+		length(constants) == 5L
 		is.finite(constants)
 		all(constants >= 0)
 		is.double(prob)
@@ -32,9 +32,9 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 		tl.params <-
 			(function (maxtau = 1, ...) list(maxtau = maxtau, ...))(...)
 
-		init <- c(S = constants[[2L]],
-		          I = constants[[3L]],
-		          R = constants[[4L]],
+		init <- c(S = constants[[1L]],
+		          I = constants[[2L]],
+		          R = constants[[3L]],
 		          B = 0,
 		          Z = 0)
 		tran <- list(c(S =  1, B = 1),        # birth
@@ -42,9 +42,11 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 		             c(I = -1, R = 1),        # removal
 		             c(S = -1),               # natural mortality
 		             c(I = -1),               # ""
-		             c(R = -1))               # ""
+		             c(R = -1),               # ""
+		             c(S =  1, R = -1))       # loss of immunity
 		if (useCompiled) {
-			.Call(R_adsir_initialize, beta, nu, mu, constants[[1L]])
+			.Call(R_adsir_initialize, beta, nu, mu,
+			      constants[[4L]], constants[[5L]])
 			on.exit(.Call(R_adsir_finalize), add = TRUE)
 			ff <- function (x, theta, t) .Call(R_adsir_dot, t, x)
 			Df <- function (x, theta, t) .Call(R_adsir_jac, t, x)
@@ -56,9 +58,15 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				tf           = n,
 				jacobianFunc = Df,
 				tl.params    = tl.params)
-		} else {
-			Dm <- matrix(0, 4L, 6L)
-			Di <- c(1L, 6L, 7L, 12L, 16L, 22L, 28L)
+		}
+		else {
+			## S:  0  beta * I      0  mu   0   0      0
+			## I:  0  beta * S  gamma   0  mu   0      0
+			## R:  0         0      0   0   0  mu  delta
+			## B:  0         0      0   0   0   0      0
+			## Z:  0         0      0   0   0   0      0
+			Dm <- matrix(0, 5L, 7L)
+			Di <- c(6L, 7L, 12L, 16L, 22L, 28L, 33L)
 			ff <- function (x, theta, t) {
 				xS <- x[[1L]]
 				xI <- x[[2L]]
@@ -67,12 +75,14 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				nu <- theta[[2L]](t)
 				mu <- theta[[3L]](t)
 				gamma <- theta[[4L]]
+				delta <- theta[[5L]]
 				c(nu,
 				  beta * xS * xI,
 				  if (xI > 1) gamma * xI else 0,
 				  mu * xS,
 				  if (xI > 1) mu * xI else 0,
-				  mu * xR)
+				  mu * xR,
+				  delta * xR)
 			}
 			Df <- function (x, theta, t) {
 				xS <- x[[1L]]
@@ -82,14 +92,16 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				nu <- theta[[2L]](t)
 				mu <- theta[[3L]](t)
 				gamma <- theta[[4L]]
-				Dm[Di] <<- c(nu, beta * xI, beta * xS, gamma, mu, mu, mu)
+				delta <- theta[[5L]]
+				Dm[Di] <<- c(beta * xI, beta * xS, gamma, mu, mu, mu, delta)
 				Dm
 			}
 			X. <- ssa.adaptivetau(
 				init.values  = init,
 				transitions  = tran,
 				rateFunc     = ff,
-				params       = list(beta, nu, mu, constants[[1L]]),
+				params       =
+					list(beta, nu, mu, constants[[4L]], constants[[5L]]),
 				tf           = n,
 				jacobianFunc = Df,
 				tl.params    = tl.params)
@@ -108,32 +120,40 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 		}
 		X <- X.[i, 2L:6L, drop = FALSE]
 
-	} else {
+	}
+	else {
 
-		init <- c(S = constants[[2L]],
-		          logI = log(constants[[3L]]),
-		          R = constants[[4L]],
+		init <- c(S = constants[[1L]],
+		          logI = log(constants[[2L]]),
+		          R = constants[[3L]],
 		          B = 0,
 		          Z = 0)
 		if (useCompiled) {
-			.Call(R_desir_initialize, beta, nu, mu, constants[[1L]])
+			.Call(R_desir_initialize, beta, nu, mu,
+			      constants[[4L]], constants[[5L]])
 			on.exit(.Call(R_desir_finalize), add = TRUE)
 			X. <- ode(
-				y = init,
-				times = 0:n,
-				func = "R_desir_dot",
-				parms = NULL,
-				jacfunc = "R_desir_jac",
-				jactype = "fullusr",
-				hmax = 1,
-				ynames = FALSE,
-				dllname = "fastbeta",
+				y        = init,
+				times    = 0L:n,
+				func     = "R_desir_dot",
+				parms    = NULL,
+				jacfunc  = "R_desir_jac",
+				jactype  = "fullusr",
+				hmax     = 1,
+				ynames   = FALSE,
+				dllname  = "fastbeta",
 				initfunc = NULL,
-				initpar = NULL,
+				initpar  = NULL,
 				...)
-		} else {
+		}
+		else {
+			##      S:  -beta * I - mu  -beta * S * I        delta  0  0
+			## log(I):            beta              0            0  0  0
+			##      R:               0      gamma * I  -delta - mu  0  0
+			##      B:               0              0            0  0  0
+			##      Z:        beta * I   beta * S * I            0  0  0
 			Dm <- matrix(0, 5L, 5L)
-			Di <- c(1L, 2L, 5L, 6L, 8L, 10L, 13L)
+			Di <- c(1L, 2L, 5L, 6L, 8L, 10L, 11L, 13L)
 			gg <- function (t, x, theta) {
 				xS <- x[[1L]]
 				xI <- exp(x[[2L]])
@@ -142,11 +162,13 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				nu <- theta[[2L]](t)
 				mu <- theta[[3L]](t)
 				gamma <- theta[[4L]]
+				delta <- theta[[5L]]
 				beta.xS <- beta * xS
 				beta.xS.xI <- beta.xS * xI
-				list(c(nu - beta.xS.xI - mu * xS,
+				delta.xR <- delta * xR
+				list(c(nu - beta.xS.xI + delta.xR - mu * xS,
 				       beta.xS - gamma - mu,
-				       gamma * xI - mu * xR,
+				       gamma * xI - delta.xR - mu * xR,
 				       nu,
 				       beta.xS.xI))
 			}
@@ -158,6 +180,7 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				nu <- theta[[2L]](t)
 				mu <- theta[[3L]](t)
 				gamma <- theta[[4L]]
+				delta <- theta[[5L]]
 				beta.xI <- beta * xI
 				beta.xS.xI <- beta.xI * xS
 				Dm[Di] <<- c(-beta.xI - mu,
@@ -166,21 +189,23 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				             -beta.xS.xI,
 				             gamma * xI,
 				             beta.xS.xI,
-				             -mu)
+				             delta,
+				             -delta - mu)
 				Dm
 			}
 			X. <- ode(
-				y = init,
-				times = 0:n,
-				func = gg,
-				parms = list(beta, nu, mu, constants[[1L]]),
-				jacfunc = Dg,
-				jactype = "fullusr",
-				hmax = 1,
-				ynames = FALSE,
-				dllname = NULL,
+				y        = init,
+				times    = 0L:n,
+				func     = gg,
+				parms    =
+					list(beta, nu, mu, constants[[4L]], constants[[5L]]),
+				jacfunc  = Dg,
+				jactype  = "fullusr",
+				hmax     = 1,
+				ynames   = FALSE,
+				dllname  = NULL,
 				initfunc = NULL,
-				initpar = NULL,
+				initpar  = NULL,
 				...)
 		}
 
@@ -215,7 +240,8 @@ function (n, beta, nu, mu, constants, stochastic = TRUE,
 				                       replace = TRUE,
 				                       prob = delay),
 				                n)
-		} else {
+		}
+		else {
 			if (!m.p)
 				Xt6 <- Xt6 * prob
 			if (!m.d) {

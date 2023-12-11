@@ -1,12 +1,17 @@
 ptpi <-
-function (series, a = 0L, b = nrow(series) - 1L,
-          start, tol = 1e-03, iter.max = 32L, complete = FALSE, ...)
+function (series, constants, a = 0L, b = nrow(series) - 1L,
+          tol = 1e-03, iter.max = 32L,
+          complete = FALSE, backcalc = FALSE, ...)
 {
 	stopifnot(exprs = {
 		is.mts(series)
 		is.double(series)
 		ncol(series) == 3L
 		min(0, series, na.rm = TRUE) >= 0
+		is.double(constants)
+		length(constants) == 5L
+		is.finite(constants)
+		all(constants >= 0)
 		is.numeric(a)
 		length(a) == 1L
 		a >= tsp(series)[1L]
@@ -14,9 +19,6 @@ function (series, a = 0L, b = nrow(series) - 1L,
 		length(b) == 1L
 		b <= tsp(series)[2L]
 		b - a >= 1 / tsp(series)[3L]
-		is.numeric(start)
-		length(start) == 1L
-		start >= 0
 		is.double(tol)
 		length(tol) == 1L
 		!is.na(tol)
@@ -26,6 +28,9 @@ function (series, a = 0L, b = nrow(series) - 1L,
 		is.logical(complete)
 		length(complete) == 1L
 		!is.na(complete)
+		is.logical(backcalc)
+		length(backcalc) == 1L
+		!is.na(backcalc)
 	})
 	tsp <- tsp(series)
 	a <- as.integer(round((a - tsp[1L]) * tsp[3L]))
@@ -37,11 +42,13 @@ function (series, a = 0L, b = nrow(series) - 1L,
 		y <- deconvolve(x = x, ...)[["value"]]
 		series[, 1L] <- y[seq.int(to = length(y), length.out = length(x))]
 	}
-	storage.mode(start) <- "double"
-	r <- .Call(R_ptpi, series, a, b, start, tol, iter.max, complete)
+	r <- .Call(R_ptpi, series, constants, a, b, tol, iter.max,
+	           complete, backcalc)
+	names(r[["value"]]) <- c("S", "I", "R")
 	if (complete) {
 		oldClass(r[["X"]]) <- oldClass(series)
 		tsp(r[["X"]]) <- c(tsp[1L] + c(a, b) / tsp[3L], tsp[3L])
+		dimnames(r[["X"]]) <- list(NULL, c("S", "I", "R"), NULL)
 	}
 	r
 }
