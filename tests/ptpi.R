@@ -1,32 +1,38 @@
-library(grDevices, pos = "package:base", verbose = FALSE)
-library(    stats, pos = "package:base", verbose = FALSE)
-library(    utils, pos = "package:base", verbose = FALSE)
+if (!requireNamespace("deSolve"))
+	q("no")
 
 library(fastbeta)
-options(warn = 2L, error = if (interactive()) recover)
+options(warn = 2L, error = if (interactive()) utils::recover)
 
-data(sir.e01, package = "fastbeta")
-a <- attributes(sir.e01)
+utils::data(seir.ts01, package = "fastbeta")
+a <- attributes(seir.ts01)
+m <- a[["m"]]
+n <- a[["n"]]
+p <- m + n + 2L
 
-series <- cbind(sir.e01[, c("Z", "B")], mu = a[["mu"]](0))
+series <- cbind(seir.ts01[, c("Z", "B")], mu = a[["mu"]](0))
 colnames(series) <- c("Z", "B", "mu")
-constants <- c(S0 = sir.e01[1L, "S"],
-               I0 = sir.e01[1L, "I"],
-               R0 = sir.e01[1L, "R"],
-               gamma = a[["gamma"]],
-               delta = a[["delta"]])
 
-a <- 8; b <- 216
-str(L0 <- ptpi(series, constants, a = a, b = b, complete = FALSE))
-str(L1 <- ptpi(series, constants, a = a, b = b, complete =  TRUE))
+start <- 23; end <- 231
+
+set.seed(0L)
+args <- c(list(series = series),
+          a[c("sigma", "gamma", "delta", "init", "m", "n")],
+          list(start = start, end = end))
+init <- seir.ts01[which.min(abs(time(seir.ts01) - start)), seq_len(p)]
+args[["init"]] <- init * rlnorm(p, 0, 0.1)
+
+L0 <- do.call(ptpi, `[[<-`(args, "complete", FALSE))
+L1 <- do.call(ptpi, `[[<-`(args, "complete",  TRUE))
+str(L1)
 
 stopifnot(exprs = {
-	is.list(L0)
-	length(L0) == 4L
-	identical(names(L0), c("value", "delta", "iter", "X"))
 	is.list(L1)
-	length(L1) == length(L0)
-	identical(names(L1), names(L0))
+	length(L1) == 4L
+	identical(names(L1), c("value", "diff", "iter", "x"))
+	is.list(L0)
+	length(L0) == length(L1)
+	identical(names(L0), names(L1))
 	identical(L0[-4L], L1[-4L])
 	is.null(L0[[4L]])
 })
@@ -34,17 +40,18 @@ stopifnot(exprs = {
 value <- L1[["value"]]
 stopifnot(exprs = {
 	is.double(value)
-	length(value) == 3L
-	identical(names(value), c("S", "I", "R"))
-	is.finite(value)
-	value >= 0
+	length(value) == p
+	identical(names(value), rep.int(c("S", "E", "I", "R"), c(1L, m, n, 1L)))
+	!anyNA(value)
+	min(value) >= 0
 })
 
-delta <- L1[["delta"]]
+diff <- L1[["diff"]]
 stopifnot(exprs = {
-	is.double(delta)
-	length(delta) == 1L
-	is.finite(delta)
+	is.double(diff)
+	length(diff) == 1L
+	!is.na(diff)
+	diff >= 0
 })
 
 iter <- L1[["iter"]]
@@ -55,17 +62,15 @@ stopifnot(exprs = {
 	iter >= 1L
 })
 
-X <- L1[["X"]]
+x <- L1[["x"]]
 stopifnot(exprs = {
-	is.double(X)
-	is.ts(X) && inherits(X, "mts") # is.mts checks is.matrix
-	identical(dim(X), c(as.integer(b - a + 1), 3L, iter))
-	identical(dimnames(X), list(NULL, c("S", "I", "R"), NULL))
-	is.finite(X)
-	X >= 0
+	is.double(x)
+	stats::is.ts(x) && inherits(x, "mts") # is.mts checks is.matrix
+	identical(dim(x), c(as.integer(end - start + 1), p, iter))
+	identical(dimnames(x), list(NULL, names(value), NULL))
+	!anyNA(x)
+	min(x) >= 0
 })
 
-if (dev.interactive(TRUE))
-	plot(X[, "S", ])
-
-proc.time()
+if (grDevices::dev.interactive(TRUE))
+	plot(x[, "S", ], plot.type = "single")

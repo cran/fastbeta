@@ -1,58 +1,79 @@
 fastbeta.bootstrap <-
-function (r, series, constants, ...)
+function (r,
+          series, sigma = gamma, gamma = 1, delta = 0,
+          init, m = length(init) - n - 2L, n = 1L, ...)
 {
-	stopifnot(exprs = {
-		is.mts(series)
-		is.double(series)
-		ncol(series) == 3L
-		min(0, series, na.rm = TRUE) >= 0
-		is.double(constants)
-		length(constants) == 5L
-		is.finite(constants)
-		all(constants >= 0)
-	})
+	stopifnot(is.mts(series),
+	          is.double(series),
+	          ncol(series) == 3L,
+	          min(0, series, na.rm = TRUE) >= 0,
+	          is.double(sigma) && length(sigma) == 1L && sigma >= 0,
+	          is.double(gamma) && length(gamma) == 1L && gamma >= 0,
+	          is.double(delta) && length(delta) == 1L && sigma >= 0,
+	          is.integer(m) && length(m) == 1L && m >= 0L,
+	          is.integer(n) && length(n) == 1L && n >= 1L,
+	          is.double(init),
+	          length(init) == m + n + 2L,
+	          all(is.finite(init)),
+	          min(init) >= 0)
 
-	## Filtering out arguments to 'sir'
-	fastbeta. <- function (series, constants,
-	                       n, beta, nu, mu, stochastic, prob, delay,
-	                       useCompiled, ...) {
+	## Filtering out arguments to 'seir'
+	fastbeta. <-
+	function (series, sigma, gamma, delta, init, m, n,
+	          length.out, beta, nu, mu, stochastic, prob, delay,
+	          useCompiled, ...)
+	{
 		## Not pretty, but neither is the (slower) alternative,
 		## i.e., modifying match.call() and evaluating the result ...
 		m.p <- missing(prob)
 		m.d <- missing(delay)
 		if (m.p && m.d)
-			fastbeta(series, constants, ...)
+			fastbeta(series, sigma, gamma, delta, init, m, n,
+			         ...)
 		else if (m.p)
-			fastbeta(series, constants, delay = delay, ...)
+			fastbeta(series, sigma, gamma, delta, init, m, n,
+			         delay = delay, ...)
 		else if (m.d)
-			fastbeta(series, constants, prob = prob, ...)
+			fastbeta(series, sigma, gamma, delta, init, m, n,
+			         prob = prob, ...)
 		else {
 			if (length(prob) > 1L)
 				prob <- c(rep.int(1, length(delay) - 1L), prob)
-			fastbeta(series, constants, prob = prob, delay = delay, ...)
+			fastbeta(series, sigma, gamma, delta, init, m, n,
+			         prob = prob, delay = delay, ...)
 		}
 	}
 
 	## Filtering out arguments to 'fastbeta'
-	sir. <- function (n, beta, nu, mu, constants,
-	                  x, start, tol, iter.max, complete, ...)
-		sir(n, beta, nu, mu, constants, ...)
+	seir. <-
+	function (length.out, beta, nu, mu, sigma, gamma, delta, init, m, n,
+	          start, tol, iter.max, complete, ...)
+		seir(length.out, beta, nu, mu, sigma, gamma, delta, init, m, n, ...)
 
-	beta. <- fastbeta.(series = series, constants = constants, ...)[, 4L]
+	p <- m + n + 2L
+
+	beta. <- fastbeta.(series = series,
+	                   sigma = sigma, gamma = gamma, delta = delta,
+	                   init = init, m = m, n = n, ...)[, p + 1L]
 	nu. <- series[, 2L] # FIXME? see below
 	mu. <- series[, 3L]
 
-	n <- nrow(series) - 1L
-	s <- as.double(0L:n)
+	length.out <- nrow(series)
+	s <- as.double(seq.int(0, length.out = length.out))
 	beta <- approxfun(s, beta., method =   "linear", rule = 2L, ties = "ordered")
 	nu   <- approxfun(s,   nu., method = "constant", rule = 2L, ties = "ordered")
 	mu   <- approxfun(s,   mu., method =   "linear", rule = 2L, ties = "ordered")
 
 	R <- simplify2array(c(list(beta.), replicate(r, simplify = FALSE, {
-		X <- sir.(n = n, beta = beta, nu = nu, mu = mu,
-		          constants = constants, ...)
-		series[, 1L:2L] <<- X[, c(ncol(X), 4L)]
-		fastbeta.(series = series, constants = constants, ...)[, 4L]
+		X <- seir.(length.out = length.out,
+		           beta = beta, nu = nu, mu = mu,
+		           sigma = sigma, gamma = gamma, delta = delta,
+		           init = init, m = m, n = n, ...)
+		j <- p + if (ncol(X) - p == 2L) 1L:2L else 3L:2L
+		series[, 1L:2L] <<- X[, j]
+		fastbeta.(series = series,
+		          sigma = sigma, gamma = gamma, delta = delta,
+		          init = init, m = m, n = n, ...)[, p + 1L]
 	})))
 	oldClass(R) <- c("fastbeta.bootstrap", oldClass(series))
 	tsp(R) <- tsp(series)
@@ -63,10 +84,9 @@ plot.fastbeta.bootstrap <-
 function (x, y, level = NULL,
           col = c("#FF0000FF", "#7F7F7F40"), lwd = c(2, 1), ...)
 {
-	cl <- oldClass(x)
-	oldClass(x) <- cl[cl != "fastbeta.bootstrap"]
+	dev.hold()
 	if (is.null(level))
-		plot(x, plot.type = "single", col = 0, lwd = 0, ...)
+		plot.ts(x, plot.type = "single", col = 0, lwd = 0, ...)
 	else {
 		stopifnot(is.double(level), length(level) == 1L, level >= 0, level <= 1)
 		alpha <- 1 - level
@@ -75,7 +95,7 @@ function (x, y, level = NULL,
 		                     names = FALSE, na.rm = TRUE))
 		oldClass(y) <- oldClass(x)
 		tsp(y) <- tsp(x)
-		plot(y, plot.type = "single", col = 0, lwd = 0, ...)
+		plot.ts(y, plot.type = "single", col = 0, lwd = 0, ...)
 	}
 	col <- rep_len(if (is.null(col)) par("col") else col, 2L)
 	lwd <- rep_len(if (is.null(lwd)) par("lwd") else lwd, 2L)
@@ -110,6 +130,7 @@ function (x, y, level = NULL,
 			polygon(t[c(1L:n, n:1L)], y[c(1L:n, (n+n):(n+1L))], col = col[2L])
 	}
 	lines(s, x[, 1L], col = col[1L], lwd = lwd[1L])
+	dev.flush()
 	invisible(NULL)
 }
 

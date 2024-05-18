@@ -1,54 +1,84 @@
 #include <Rinternals.h>
 
 static
-void fastbeta(double *s, double *c, int n, double *r)
+void fastbeta(const double *series,
+              double sigma, double gamma, double delta,
+              const double *init, int m, int n, int lengthOut,
+              double *x)
 {
-	double
-		*Z = s, *B = Z + n + 1, *mu = B + n + 1,
-		*S = r, *I = S + n + 1, * R = I + n + 1, *beta = R + n + 1;
-	S[0] = c[0]; I[0] = c[1]; R[0] = c[2]; beta[n] = NA_REAL;
-
-	if (n == 0)
+	if (lengthOut <= 0)
 		return;
 
-	int i, j, k;
-	char name[] = { 'S', 'I', 'R' }, warn[] = { 1, 1, 1 };
-	double halfmu = 0.5 * mu[0], halfgamma = 0.5 * c[3], halfdelta = 0.5 * c[4],
-		tmp0, tmp1, *r_;
+	const
+	double *Z  = series, *B  = Z + lengthOut, *mu = B + lengthOut;
 
-	for (i = 0, j = 1; i < n; ++i, ++j) {
-		tmp0 = 1.0 -  halfmu;
-		tmp1 = 1.0 + (halfmu = 0.5 * mu[j]);
+	double *S = x,
+		halfsigma = 0.5 * sigma * (double) m,
+		halfgamma = 0.5 * gamma * (double) n,
+		halfdelta = 0.5 * delta * (double) 1,
+		work[4];
 
-		I[j]  = (tmp0 - halfgamma) * I[i]                             + Z[j];
-		I[j] /= tmp1 + halfgamma;
+	int d[2];
+	d[0] = lengthOut;
+	d[1] = m + n + 2; /* not counting last column storing 'beta' */
 
-		R[j]  = (tmp0 - halfdelta) * R[i] + halfgamma * (I[i] + I[j]);
-		R[j] /= tmp1 + halfdelta;
-
-		S[j]  =  tmp0              * S[i] + halfdelta * (R[i] + R[j]) - Z[j] + B[j];
-		S[j] /= tmp1;
-
-		r_ = r;
-		for (k = 0; k < 2; ++k) {
-			if (warn[k] && (ISNAN(*r) || *r < 0.0)) {
-				warning("%c[%d] is NA or negative", name[k], k);
-				warn[k] = 0;
-			}
-			r += n + 1;
-		}
-		r = r_ + 1;
-
-		beta[i] = 0.5 * (Z[i] + Z[j]) / (S[i] * I[i]);
+	for (int k = 0; k < d[1]; ++k) {
+		x[0] = init[k];
+		x += d[0];
 	}
+	x[d[0] - 1] = NA_REAL;
+
+	for (int s = 0, t = 1; t < d[0]; ++s, ++t) {
+		x = S + d[0];
+
+		work[0] = 1.0 - 0.5 * mu[s];
+		work[1] = 1.0 + 0.5 * mu[t];
+		work[2] = Z[t];
+		work[3] = 0.0;
+
+		for (int i = 0; i < m; ++i) {
+		x[t] = ((work[0] - halfsigma) * x[s] + work[2])/(work[1] + halfsigma);
+		work[2] = halfsigma * (x[s] + x[t]);
+		x += d[0];
+		}
+		for (int j = 0; j < n; ++j) {
+		x[t] = ((work[0] - halfgamma) * x[s] + work[2])/(work[1] + halfgamma);
+		work[2] = halfgamma * (x[s] + x[t]);
+		work[3] += x[s];
+		x += d[0];
+		}
+		x[t] = ((work[0] - halfdelta) * x[s] + work[2])/(work[1] + halfdelta);
+		work[2] = halfdelta * (x[s] + x[t]) - Z[t] + B[t];
+		x += d[0];
+		S[t] = ( work[0]              * S[s] + work[2])/ work[1]             ;
+		x[s] = (Z[s] + Z[t]) / (2.0 * S[s] * work[3]);
+	}
+
 	return;
 }
 
-SEXP R_fastbeta(SEXP series, SEXP constants)
+SEXP R_fastbeta(SEXP s_series,
+                SEXP s_sigma, SEXP s_gamma, SEXP s_delta,
+                SEXP s_init, SEXP s_m, SEXP s_n)
 {
-	int n = INTEGER(getAttrib(series, R_DimSymbol))[0] - 1;
-	SEXP res = allocMatrix(REALSXP, n + 1, 4);
-	if (n >= 0)
-		fastbeta(REAL(series), REAL(constants), n, REAL(res));
-	return res;
+	int m = INTEGER(s_m)[0], n = INTEGER(s_n)[0],
+		lengthOut = INTEGER(getAttrib(s_series, R_DimSymbol))[0];
+	SEXP x = PROTECT(allocMatrix(REALSXP, lengthOut, m + n + 3));
+
+	fastbeta(REAL(s_series),
+	         REAL(s_sigma)[0], REAL(s_gamma)[0], REAL(s_delta)[0],
+	         REAL(s_init), m, n, lengthOut,
+	         REAL(x));
+
+	double *px = REAL(x);
+	for (R_xlen_t k = 0, end = XLENGTH(x) - 1; k < end; ++k) {
+		if (!ISNAN(px[k]) && px[k] < 0.0) {
+			warning("entry [%d, %d] of result is negative",
+			        (int) (k % lengthOut) + 1, (int) (k / lengthOut) + 1);
+			break;
+		}
+	}
+
+	UNPROTECT(1);
+	return x;
 }
