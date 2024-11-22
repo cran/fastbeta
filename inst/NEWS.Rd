@@ -1,6 +1,59 @@
 \name{NEWS}
 \title{News for \R{} Package \pkg{fastbeta}}
 
+\section{Changes in version 0.3.1 (2024-11-22)}{
+  \subsection{INSTALLATION}{
+    \itemize{
+      \item Compilation now uses \option{-DSTRICT_R_HEADERS} and
+      \option{-DR_NO_REMAP}.
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Entry \code{[2, 2]} of the Jacobian matrix constructed by
+      \code{seir(stochastic = FALSE, useCompiled = FALSE)} was wrong.
+
+      \item \code{seir} handles more comprehensively the situation in
+      which the number of rows of the matrix returned by \pkg{deSolve}
+      function \code{lsoda} is less than \code{length.out}.  It now
+      distinguishes termination due to found roots from termination due
+      to an unsuccessful solver call.
+
+      \item Warnings caught by \option{-Wconversion} are squashed.
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{seir} gains logical argument \code{aggregate}
+      indicating whether latent and infectious compartments should be
+      aggregated.
+
+      \item \code{seir} arguments \code{nu} and \code{mu} gain
+      default values.  In both cases, it is \code{function (t) 0},
+      indicating no vital dynamics.
+
+      \item \code{seir.R0}, \code{seir.ee}, and \code{seir.jacobian} for
+      calculating the basic reproduction number, endemic equilibrium,
+      and Jacobian matrix.
+
+      \item \code{fastbeta.matrix} for calculating lower triangular
+      coefficient matrix.
+    }
+  }
+  \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
+    \itemize{
+      \item Formal argument \code{init} of \code{fastbeta},
+      \code{fastbeta.bootstrap}, \code{ptpi}, and \code{seir} is
+      repositioned.
+
+      \item Formal arguments \code{sigma} and \code{m} of
+      \code{fastbeta}, \code{fastbeta.bootstrap}, \code{ptpi}, and
+      \code{seir} have constant default values (\code{sigma = 1},
+      \code{m = 1L}) not depending on the values of other arguments.
+    }
+  }
+}
+
 \section{Changes in version 0.3.0 (2024-05-17)}{
   \subsection{INSTALLATION}{
     \itemize{
@@ -24,7 +77,7 @@
   \subsection{NEW FEATURES}{
     \itemize{
       \item Compartmental model is generalized to support multiple
-      infected compartments: \eqn{m} latent and \eqn{n} infectious,
+      infected compartments, \eqn{m} latent and \eqn{n} infectious,
       resulting in several backwards incompatible changes to the API;
       see below.
     }

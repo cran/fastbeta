@@ -1,9 +1,9 @@
 #include <Rinternals.h>
 
 static
-void fastbeta(const double *series,
+void fastbeta(const double *series, int lengthOut,
               double sigma, double gamma, double delta,
-              const double *init, int m, int n, int lengthOut,
+              int m, int n, const double *init,
               double *x)
 {
 	if (lengthOut <= 0)
@@ -59,22 +59,23 @@ void fastbeta(const double *series,
 
 SEXP R_fastbeta(SEXP s_series,
                 SEXP s_sigma, SEXP s_gamma, SEXP s_delta,
-                SEXP s_init, SEXP s_m, SEXP s_n)
+                SEXP s_m, SEXP s_n, SEXP s_init)
 {
 	int m = INTEGER(s_m)[0], n = INTEGER(s_n)[0],
-		lengthOut = INTEGER(getAttrib(s_series, R_DimSymbol))[0];
-	SEXP x = PROTECT(allocMatrix(REALSXP, lengthOut, m + n + 3));
+		lengthOut = INTEGER(Rf_getAttrib(s_series, R_DimSymbol))[0];
+	SEXP x = PROTECT(Rf_allocMatrix(REALSXP, lengthOut, m + n + 3));
 
-	fastbeta(REAL(s_series),
+	fastbeta(REAL(s_series), lengthOut,
 	         REAL(s_sigma)[0], REAL(s_gamma)[0], REAL(s_delta)[0],
-	         REAL(s_init), m, n, lengthOut,
+	         m, n, REAL(s_init),
 	         REAL(x));
 
 	double *px = REAL(x);
 	for (R_xlen_t k = 0, end = XLENGTH(x) - 1; k < end; ++k) {
 		if (!ISNAN(px[k]) && px[k] < 0.0) {
-			warning("entry [%d, %d] of result is negative",
-			        (int) (k % lengthOut) + 1, (int) (k / lengthOut) + 1);
+			Rf_warning("entry [%d, %d] of result is negative",
+			           (int) (k % lengthOut) + 1,
+			           (int) (k / lengthOut) + 1);
 			break;
 		}
 	}

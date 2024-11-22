@@ -12,18 +12,20 @@ then an error is signaled.
 }
 \usage{
 seir(length.out = 1L,
-     beta, nu, mu, sigma = gamma, gamma = 1, delta = 0,
-     init, m = length(init) - n - 2L, n = 1L,
+     beta, nu = function(t) 0, mu = function(t) 0,
+     sigma = 1, gamma = 1, delta = 0,
+     m = 1L, n = 1L, init,
      stochastic = TRUE, prob = 1, delay = 1,
-     useCompiled = TRUE, \dots)
+     aggregate = FALSE, useCompiled = TRUE, \dots)
 
-## A basic wrapper for the 'm = 0L' case:
+## A basic wrapper for the m=0L case:
 
  sir(length.out = 1L,
-     beta, nu, mu, gamma = 1, delta = 0,
-     init, n = 1L,
+     beta, nu = function(t) 0, mu = function(t) 0,
+     gamma = 1, delta = 0,
+     n = 1L, init,
      stochastic = TRUE, prob = 1, delay = 1,
-     useCompiled = TRUE, \dots)
+     aggregate = FALSE, useCompiled = TRUE, \dots)
 }
 \arguments{
 \item{length.out}{
@@ -37,13 +39,13 @@ seir(length.out = 1L,
   non-negative numbers.  \code{m*sigma}, \code{n*gamma}, and
   \code{delta} are the rates of removal from each latent, infectious,
   and recovered compartment.}
-\item{init}{
-  a numeric vector of length \code{1+m+n+1} giving an initial state with
-  compartments ordered as \eqn{(S, E, I, R)}{c(S, E, I, R)}.}
 \item{m}{
   a non-negative integer indicating a number of latent stages.}
 \item{n}{
   a positive integer indicating a number of infectious stages.}
+\item{init}{
+  a numeric vector of length \code{1+m+n+1} giving an initial state with
+  compartments ordered as \eqn{(S, E, I, R)}{c(S, E, I, R)}.}
 \item{stochastic}{
   a logical indicating if the simulation should be stochastic; see
   \sQuote{Details}.}
@@ -56,6 +58,9 @@ seir(length.out = 1L,
   probability that an infection during interval \code{j} is observed
   during interval \code{j+i-1}, given that it is eventually observed.
   \code{delay} need not sum to 1 but must not sum to 0.}
+\item{aggregate}{
+  a logical indicating if latent and infectious compartments should be
+  aggregated.}
 \item{useCompiled}{
   a logical indicating if derivatives should be computed by compiled
   \proglang{C} functions rather than by \R{} functions (which \emph{may}
@@ -111,7 +116,8 @@ system of ordinary differential equations
   &{} = {}&   n \gamma &I^{j} &{} - ( &&   n \gamma &{} + \mu(t)) I^{j + 1} &{}          \\
   \text{d} & R         &{} / \text{d} t
   &{} = {}&   n \gamma &I^{n} &{} - ( &&     \delta &{} + \mu(t)) R         &{}
-  \end{alignedat} \\
+  \end{alignedat}
+  \\
   \lambda(t) = \beta(t) \sum_{j} I^{j}
 }{
   dS       /dt =     delta * R    - ( lambda(t) + mu(t) ) * S        + nu(t)
@@ -129,11 +135,13 @@ time series of incidence and births, the system is augmented with two
 equations describing \emph{cumulative} incidence and births
 \deqn{
   \begin{aligned}
-  \text{d} Z / \text{dt} &{} = \lambda(t) S
+  \text{d} Z / \text{dt} &{} = \lambda(t) S \\
   \text{d} B / \text{dt} &{} = \nu(t)
   \end{aligned}
 }{
   dZ/dt = lambda(t) * S
+  %% Rd bug?  {0,1,2} newlines => {0,0,2} line breaks.
+
   dB/dt = nu(t)
 }
 and the \emph{augmented} system is numerically integrated.
@@ -147,7 +155,7 @@ samples taken with probabilities \code{prob} over future observation
 intervals according to multinomial samples taken with probabilities
 \code{delay}.
 }
-\seealso{\code{\link{seir.library}}.}
+\seealso{\code{\link{seir.auxiliary}}, \code{\link{seir.library}}.}
 \references{
 Cao, Y., Gillespie, D. T., & Petzold, L. R. (2007).
 Adaptive explicit-implicit tau-leaping method with
@@ -179,9 +187,9 @@ prob <- 0.1
 delay <- diff(pgamma(0:8, 2.5))
 
 set.seed(0L)
-X <- seir(length.out, beta, nu, mu, sigma, gamma, delta, init,
+X <- seir(length.out, beta, nu, mu, sigma, gamma, delta, init = init,
           prob = prob, delay = delay, epsilon = 0.002)
-##                                    ^^^^^^^
+##                                              ^^^^^
 ## default epsilon = 0.05 allows too big leaps => spurious noise
 ##
 str(X)
@@ -189,14 +197,14 @@ plot(X)
 
 r <- 10L
 Y <- do.call(cbind, replicate(r, simplify = FALSE,
-	seir(length.out, beta, nu, mu, sigma, gamma, delta, init,
+	seir(length.out, beta, nu, mu, sigma, gamma, delta, init = init,
 	     prob = prob, delay = delay, epsilon = 0.002)[, "Z.obs"]))
 str(Y) # FIXME: stats:::cbind.ts mangles dimnames
 plot(window(Y, start = tsp(Y)[1L] + length(delay) / tsp(Y)[3L]),
      ##        ^^^^^
      ## discards points showing edge effects due to 'delay'
      ##
-     plot.type = "single", col = seq_len(r), ylab = "case reports")
+     plot.type = "single", col = seq_len(r), ylab = "Case reports")
 
 })
 }

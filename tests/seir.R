@@ -15,7 +15,7 @@ delta <- 0
 m <- 1L
 n <- 1L
 p <- m + n + 2L
-init <- fastbeta:::seir.ee(beta(0), nu(0), mu(0), sigma, gamma, delta, m, n)
+init <- seir.ee(beta(0), nu(0), mu(0), sigma, gamma, delta, m, n)
 
 stopifnot(exprs = {
 	is.double(init)
@@ -39,7 +39,7 @@ seir2 <-
 function (stochastic, useCompiled)
 {
 	set.seed(0L)
-	seir(length.out, beta, nu, mu, sigma, gamma, delta, init, m, n,
+	seir(length.out, beta, nu, mu, sigma, gamma, delta, m, n, init,
 	     stochastic, prob, delay, useCompiled)
 }
 
@@ -52,7 +52,7 @@ dim(L) <- c(2L, 2L)
 X <- L[[1L, 1L]]
 
 stopifnot(exprs = {
-	all.equal(L[, 1L], L[, 2L], tolerance = 1/sum(init))
+	all.equal(L[, 1L], L[, 2L], tolerance = 1 / sum(init))
 	is.double(X)
 	stats::is.mts(X)
 	identical(dim(X), c(length.out, p + 3L))
@@ -65,4 +65,4 @@ stopifnot(exprs = {
 if (grDevices::dev.interactive(TRUE))
 	plot(X)
 
-tools::assertError(seir(0L, beta, nu, mu, sigma, gamma, delta, init, m, n))
+tools::assertError(seir(0L, beta, nu, mu, sigma, gamma, delta, m, n, init))

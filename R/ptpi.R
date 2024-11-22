@@ -1,7 +1,6 @@
 ptpi <-
-function (series,
-          sigma = gamma, gamma = 1, delta = 0,
-          init, m = length(init) - n - 2L, n = 1L,
+function (series, sigma = 1, gamma = 1, delta = 0,
+          m = 1L, n = 1L, init,
           start = tsp(series)[1L], end = tsp(series)[2L],
           tol = 1e-03, iter.max = 32L,
           backcalc = FALSE, complete = FALSE, ...)
@@ -50,11 +49,11 @@ function (series,
 		y <- deconvolve(x = x, ...)[["value"]]
 		series[, 1L] <- y[seq.int(to = length(y), length.out = length(x))]
 	}
-	ans <- .Call(R_ptpi, series, sigma, gamma, delta, init, m, n,
+	ans <- .Call(R_ptpi, series, sigma, gamma, delta, m, n, init,
 	             a, b, tol, iter.max, backcalc, complete)
 	names(ans[["value"]]) <- rep.int(c("S", "E", "I", "R"), c(1L, m, n, 1L))
 	if (complete) {
-		oldClass(ans[["x"]]) <- oldClass(series)
+		oldClass(ans[["x"]]) <- c("mts", "ts", "array")
 		tsp(ans[["x"]]) <- c(tsp[1L] + c(a, b - 1L) / tsp[3L], tsp[3L])
 		dimnames(ans[["x"]]) <- list(NULL, names(ans[["value"]]), NULL)
 	}

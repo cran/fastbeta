@@ -3,12 +3,12 @@
 \title{Estimate a Time-Varying Infectious Disease Transmission Rate}
 \description{
 Generates a discrete approximation of a time-varying infectious disease
-transmission rate from an equally spaced incidence time series and other
-data.
+transmission rate from an equally spaced disease incidence time series
+and other data.
 }
 \usage{
-fastbeta(series, sigma = gamma, gamma = 1, delta = 0,
-         init, m = length(init) - n - 2L, n = 1L, \dots)
+fastbeta(series, sigma = 1, gamma = 1, delta = 0,
+         m = 1L, n = 1L, init, \dots)
 }
 \arguments{
 \item{series}{
@@ -20,13 +20,13 @@ fastbeta(series, sigma = gamma, gamma = 1, delta = 0,
   non-negative numbers.  \code{m*sigma}, \code{n*gamma}, and
   \code{delta} are the rates of removal from each latent, infectious,
   and recovered compartment.}
-\item{init}{
-  a numeric vector of length \code{1+m+n+1} giving an initial state with
-  compartments ordered as \eqn{(S, E, I, R)}{c(S, E, I, R)}.}
 \item{m}{
   a non-negative integer indicating a number of latent stages.}
 \item{n}{
   a positive integer indicating a number of infectious stages.}
+\item{init}{
+  a numeric vector of length \code{1+m+n+1} giving an initial state with
+  compartments ordered as \eqn{(S, E, I, R)}{c(S, E, I, R)}.}
 \item{\dots}{
   optional arguments passed to \code{\link{deconvolve}}, if the first
   column of \code{series} represents \emph{observed} incidence rather
@@ -70,7 +70,8 @@ equations
   &{} = {}&   n \gamma &I^{j} &{} - ( &&   n \gamma &{} + \mu(t)) I^{j + 1} &{}          \\
   \text{d} & R         &{} / \text{d} t
   &{} = {}&   n \gamma &I^{n} &{} - ( &&     \delta &{} + \mu(t)) R         &{}
-  \end{alignedat} \\
+  \end{alignedat}
+  \\
   \lambda(t) = \beta(t) \sum_{j} I^{j}
 }{
   dS       /dt =     delta * R    - ( lambda(t) + mu(t) ) * S        + nu(t)
@@ -106,7 +107,8 @@ approximation of \eqn{\beta}:
   &S_{t + 1}
   &{} = {}& [(1 - \tfrac{1}{2} ( &            \mu_{t})) & S_{t}         &{} + {}& \tfrac{1}{2} &   \delta ( & R_{t}     &{} + {}& R_{t + 1}     & ) &{} - Z_{t + 1} &{} + B_{t + 1}] &{} /
   [1 + \tfrac{1}{2} ( &            \mu_{t + 1})]
-  \end{alignedat} \\
+  \end{alignedat}
+  \\
   \beta_{t} = (Z_{t} + Z_{t + 1}) / (2 S_{t} \sum_{j} I_{t}^{j})
 }{
   E[t + 1,     1] = ( (1 - 0.5 * (m * sigma + mu[t])) * E[t, 1]                                             + Z[t + 1]            ) / ( 1 + 0.5 * (m * sigma + mu[t + 1]) )
@@ -164,14 +166,14 @@ series <- cbind(seir.ts02[, c("Z", "B")], mu = a[["mu"]](0))
 colnames(series) <- c("Z", "B", "mu") # FIXME: stats:::cbind.ts mangles dimnames
 
 args <- c(list(series = series),
-          a[c("sigma", "gamma", "delta", "init", "m", "n")])
+          a[c("sigma", "gamma", "delta", "m", "n", "init")])
 str(args)
 
 X <- do.call(fastbeta, args)
 str(X)
 plot(X)
 
-plot(X[, "beta"], ylab = "transmission rate")
+plot(X[, "beta"], ylab = "Transmission rate")
 lines(a[["beta"]](time(X)), col = "red") # the "truth"
 
 })

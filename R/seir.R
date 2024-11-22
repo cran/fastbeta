@@ -1,9 +1,10 @@
 seir <-
 function (length.out = 1L,
-          beta, nu, mu, sigma = gamma, gamma = 1, delta = 0,
-          init, m = length(init) - n - 2L, n = 1L,
+          beta, nu = function (t) 0, mu = function (t) 0,
+          sigma = 1, gamma = 1, delta = 0,
+          m = 1L, n = 1L, init,
           stochastic = TRUE, prob = 1, delay = 1,
-          useCompiled = TRUE, ...)
+          aggregate = FALSE, useCompiled = TRUE, ...)
 {
 	stopifnot(requireNamespace(if (stochastic) "adaptivetau" else "deSolve"),
 	          is.integer(length.out) && length(length.out) == 1L && length.out >= 1L,
@@ -12,7 +13,7 @@ function (length.out = 1L,
 	          is.function(mu  ) && !is.null(formals(mu  )),
 	          is.double(sigma) && length(sigma) == 1L && sigma >= 0,
 	          is.double(gamma) && length(gamma) == 1L && gamma >= 0,
-	          is.double(delta) && length(delta) == 1L && sigma >= 0,
+	          is.double(delta) && length(delta) == 1L && delta >= 0,
 	          is.integer(m) && length(m) == 1L && m >= 0L && m < 4096L,
 	          is.integer(n) && length(n) == 1L && n >= 1L && n < 4096L,
 	          is.double(init),
@@ -65,9 +66,9 @@ function (length.out = 1L,
 			c(list(`names<-`(c(-1, 1, 1), c("S", nms[2L], "Z"))),
 			  list(`names<-`(c(1, 1), c("S", "B"))),
 			  lapply(1L:p,
-			         function(i) `names<-`(-1, nms[i])),
+			         function (i) `names<-`(-1, nms[i])),
 			  lapply(2L:(p - 1L),
-			         function(i) `names<-`(c(-1, 1), nms[c(i, i + 1L)])),
+			         function (i) `names<-`(c(-1, 1), nms[c(i, i + 1L)])),
 			  list(`names<-`(c(1, -1), c("S", "R"))))
 		## infection, birth, natural mortality, removal, loss of immunity
 
@@ -126,13 +127,13 @@ function (length.out = 1L,
 				beta <- beta(t)
 				mu   <- mu  (t)
 				D[ 1L] <<- beta * sum(x.I)
-				D[k.0] <<- beta * x.S
+				D[k.0] <<- beta *     x.S
 				D[k.1] <<- mu
 				D
 			}
 		}
 
-		X. <- adaptivetau::ssa.adaptivetau(
+		x. <- adaptivetau::ssa.adaptivetau(
 			init.values  = init.,
 			transitions  = tran,
 			rateFunc     = ff,
@@ -140,10 +141,10 @@ function (length.out = 1L,
 			tf           = length.out - 1L,
 			jacobianFunc = Df,
 			tl.params    = tl.params)
+		m. <- nrow(x.)
 
-		D. <- dim(X.)
-		i <- D.[1L] - match(seq.int(0L, length.out = length.out),
-		                    as.integer(ceiling(X.[D.[1L]:1L, 1L]))) + 1L
+		i <- m. - match(seq.int(0L, length.out = length.out),
+		                as.integer(ceiling(x.[m.:1L, 1L]))) + 1L
 		if (anyNA(i)) {
 			## tl.params[["maxtau"]] constrains leaps but not steps => LOCF
 			i[is.na(i)] <- 0L
@@ -153,7 +154,7 @@ function (length.out = 1L,
 			ik[w] <- ik[w - 1L]
 			i <- rep.int(ik, k - c(0L, k[-length(k)]))
 		}
-		X <- X.[i, -1L, drop = FALSE] # discarding time
+		x <- x.[i, -1L, drop = FALSE] # discarding time
 
 	}
 	else {
@@ -191,7 +192,7 @@ function (length.out = 1L,
 			##
 			##       S I I I I R Z B
 			##     S | | | | | | . .
-			##     I | . | | | . . .
+			##     I | | | | | . . .
 			##     I . | | . . . . .
 			##     I . . | | . . . .
 			##     I . . . | | . . .
@@ -201,10 +202,8 @@ function (length.out = 1L,
 			##
 			## where log(.) is suppressed only for pretty printing
 			D <- matrix(0, p + 2L, p + 2L)
-			k.0 <- seq.int(from = (p + 2L) * 2L + 3L, by = p + 3L,
-			               length.out = p - 2L)
-			k.1 <- k.0 - p - 2L
-
+			k.1 <- seq.int(from = p + 5L, by = p + 3L, length.out = p - 2L)
+			k.0 <- k.1 + p + 2L
 			i.1 <- 2L:(p - 1L)
 			i.0 <- 3L:p
 			a.1 <- rep.int(c(sigma, gamma), c(m, n)); a.11 <- a.1[1L]
@@ -214,7 +213,6 @@ function (length.out = 1L,
 			function (t, x, theta)
 			{
 				x.S <- x[i.S]
-				x.E <- x[i.E]
 				x.I <- x[i.I]
 				x.R <- x[i.R]
 				beta <- beta(t)
@@ -243,13 +241,13 @@ function (length.out = 1L,
 				D[i.S, i.R] <<- delta * exp(x.R)
 				D[ 2L, i.S] <<- beta * s.2
 				D[ 2L, i.I] <<- beta * u.2 * x.S
-				D[ 2L,  2L] <<- if (m) -beta * s.2 else 0
+				D[ 2L,  2L] <<- -beta * (if (m) s.2 else s.2 - 1) * x.S
 				D[k.0] <<- -(D[k.1] <<- a.1 * exp(x[i.1] - x[i.0]))
 				D
 			}
 		}
 
-		X. <- deSolve::lsoda(
+		x. <- deSolve::lsoda(
 			y        = init.,
 			times    = seq.int(0, length.out = length.out),
 			func     = gg,
@@ -262,102 +260,185 @@ function (length.out = 1L,
 			initfunc = NULL,
 			initpar  = NULL,
 			...)
+		m. <- nrow(x.)
 
-		X. <- X.[, -1L, drop = FALSE]
-		X.[, 2L:p] <- exp(X.[, 2L:p])
-		D. <- dim(X.)
-		X <-
-			if (D.[1L] < length.out)
-				## not seen, but help("lsoda") says that it is possible
-				rbind(X., matrix(NaN, length.out - D.[1L], D.[2L]),
-				      deparse.level = 0L)
-			else X.
+		if (m. < length.out) {
+			if (attr(x., "istate")[1L] < 0L)
+				warning("integration terminated due to unsuccessful solver call")
+			length.out <- m.
+		}
+
+		x <- x.[, -1L, drop = FALSE]
+		x[, 2L:p] <- exp(x[, 2L:p])
 
 	}
 
 	if (length.out > 1L) {
 	head <- 1L:(length.out - 1L)
 	tail <- 2L:length.out
-	X[tail, p + 1L:2L] <- X[tail, p + 1L:2L] - X[head, p + 1L:2L]
+	x[tail, p + 1L:2L] <- x[tail, p + 1L:2L] - x[head, p + 1L:2L]
 	}
-	X[  1L, p + 1L:2L] <- NA_real_
+	x[  1L, p + 1L:2L] <- NA_real_
 
 	m.p <- missing(prob)
 	m.d <- missing(delay)
 	if (doObs <- !(m.p && m.d)) {
-		X <- cbind(X, NA_real_, deparse.level = 0L)
+		x <- cbind(x, NA_real_, deparse.level = 0L)
 		if (length.out > 1L) {
-		Z <- X[tail, p + 1L]
+		z <- x[tail, p + 1L]
 		if (stochastic) {
-			Z <- as.integer(Z)
+			z <- as.integer(z)
 			if (!m.p)
-				Z <- rbinom(length.out - 1L, Z, prob)
+				z <- rbinom(length.out - 1L, z, prob)
 			if (!m.d)
 				## FIXME? 'rmultinom' is more efficient, but not vectorized ...
-				Z <- tabulate(rep.int(seq_len(length.out - 1L), Z) +
+				z <- tabulate(rep.int(seq_len(length.out - 1L), z) +
 				              sample(seq.int(0L, length.out = length(delay)),
-				                     size = sum(Z),
+				                     size = sum(z),
 				                     replace = TRUE,
 				                     prob = delay),
 				              length.out - 1L)
 		}
 		else {
 			if (!m.p)
-				Z <- Z * prob
+				z <- z * prob
 			if (!m.d) {
 				d <- length(delay) - 1L
-				Z <- filter(c(double(d), Z), delay / sum(delay),
+				z <- filter(c(double(d), z), delay / sum(delay),
 				            sides = 1)[(d + 1L):(d + length.out - 1L)]
 			}
 		}
-		X[tail, p + 3L] <- Z
+		x[tail, p + 3L] <- z
 		}
 	}
 
-	nms <- rep.int(c("S", "E", "I", "R", "Z", "B", "Z.obs"),
-	               c(1L, m, n, 1L, 1L, 1L, if (doObs) 1L else 0L))
-	ts(X, start = 0, names = nms)
+	if (aggregate) {
+		x <- seir.aggregate(x, m, n)
+		m <- 1L
+		n <- 1L
+	}
+
+	if (!stochastic &&
+	    !is.null((function (rootfunc = NULL, ...) rootfunc)(...)))
+		for (nm in grep("root", names(attributes(x.)), value = TRUE))
+			attr(x, nm) <- attr(x., nm)
+
+	oldClass(x) <- c("mts", "ts", "matrix", "array")
+	tsp(x) <- c(0, length.out - 1, 1)
+	dimnames(x) <-
+		list(NULL,
+		     rep.int(c("S", "E", "I", "R", "Z", "B", "Z.obs"),
+		             c(1L, m, n, 1L, 1L, 1L, if (doObs) 1L else 0L)))
+	x
 }
 
 seir.R0 <-
-function (beta, nu, mu, sigma, gamma, delta, m = 0L, n = 1L)
+function (beta, nu = 0, mu = 0, sigma = 1, gamma = 1, delta = 0,
+          m = 1L, n = 1L, N = 1)
 {
-	sigma <- sigma * m
-	gamma <- gamma * n
-	delta <- delta * 1
-	(nu / mu) * (sigma / (sigma + mu))^m * (beta / (gamma + mu)) *
-		sum(cumprod(rep.int(c(1, gamma / (gamma + mu)), c(1L, n - 1L))))
+	stopifnot(is.double( beta) && length( beta) == 1L &&  beta >= 0,
+	          is.double(   nu) && length(   nu) == 1L &&    nu >= 0,
+	          is.double(   mu) && length(   mu) == 1L &&    mu >= 0,
+	          is.double(sigma) && length(sigma) == 1L && sigma >  0,
+	          is.double(gamma) && length(gamma) == 1L && gamma >  0,
+	          is.double(delta) && length(delta) == 1L && delta >= 0,
+	          is.integer(m) && length(m) == 1L && m >= 0L,
+	          is.integer(n) && length(n) == 1L && n >= 1L,
+	          is.double(N) && length(N) == 1L && N >= 0,
+	          (nu > 0) == (mu > 0))
+	if (mu == 0)
+		N * beta / gamma
+	else {
+		N <- nu / mu
+		a <- 1 + mu / (m * sigma)
+		b <- 1 + mu / (n * gamma)
+		N * beta / mu * a^-m * (1 - b^-n)
+	}
 }
 
 seir.ee <-
-function (beta, nu, mu, sigma, gamma, delta, m = 0L, n = 1L)
+function (beta, nu = 0, mu = 0, sigma = 1, gamma = 1, delta = 0,
+          m = 1L, n = 1L, N = 1)
 {
-	sigma <- sigma * m
-	gamma <- gamma * n
-	delta <- delta * 1
-	y <- cumprod(rep.int((c(delta, gamma) + mu) / gamma, c(1L, n - 1L)))
-	if (m == 0L) {
-		S. <- (tmp <- (gamma + mu) * y[n]) / beta / sum(y)
-		R. <- (nu - mu * S.) / (tmp - delta)
-		ans <- c(S., y[n:1L] * R., R.)
+	stopifnot(seir.R0(beta, nu, mu, sigma, gamma, delta, m, n, N) >= 1)
+	if (mu == 0) {
+		S <- gamma / beta
+		R <- (N - S) / (1 + delta * ((if (m > 0L) 1 / sigma else 0) + 1 / gamma))
+		I <- R * delta / (n * gamma)
+		E <- R * delta / (m * sigma)
+		ans <- rep.int(c(S, E, I, R), c(1L, m, n, 1L))
 	}
 	else {
-		x <- cumprod(rep.int((c(gamma, sigma) + mu) / sigma, c(1L, m - 1L))) *
-			y[n]
-		S. <- (tmp <- (sigma + mu) * x[m]) / beta / sum(y)
-		R. <- (nu - mu * S.) / (tmp - delta)
-		ans <- c(S., x[m:1L] * R., y[n:1L] * R., R.)
+		N <- nu / mu
+		a <- 1 + mu / (m * sigma)
+		b <- 1 + mu / (n * gamma)
+		S <- mu / beta * a^m / (1 - b^-n)
+		R <- (N - S) / (a^m * b^n + delta / mu * (a^m * b^n - 1))
+		I <- cumprod(rep.int(c(R       * (delta + mu) / (n * gamma), b), c(1L, n - 1L)))[n:1L]
+		E <- if (m > 0L)
+		     cumprod(rep.int(c(R * b^n * (delta + mu) / (m * sigma), a), c(1L, m - 1L)))[m:1L]
+		ans <- c(S, E, I, R)
 	}
 	names(ans) <- rep.int(c("S", "E", "I", "R"), c(1L, m, n, 1L))
 	ans
 }
 
+seir.jacobian <-
+function (beta, nu = 0, mu = 0, sigma = 1, gamma = 1, delta = 0,
+          m = 1L, n = 1L)
+{
+	p <- m + n + 2L
+	nms <- rep.int(c("S", "E", "I", "R"), c(1L, m, n, 1L))
+	sigma <- sigma * m
+	gamma <- gamma * n
+	delta <- delta * 1
+	i.S <- 1L
+	i.E <- seq.int(    2L, length.out = m)
+	i.I <- seq.int(m + 2L, length.out = n)
+	i.R <- p
+	k <- seq.int(from = p + 3L, by = p + 1L, length.out = p - 2L)
+	a <- rep.int(c(sigma, gamma), c(m, n))
+	D <- array(0, c(p, p), list(nms, nms))
+	D[i.S, i.R] <- delta
+	D[k    ] <- a
+	D[k + p] <- -c(a[-1L], delta) - mu
+	rm(a, k, p, nms)
+	function (x)
+	{
+		D[i.S, i.S] <<- -(D[2L, i.S] <<- beta * sum(x[i.I])) - mu
+		D[i.S, i.I] <<- -(D[2L, i.I] <<- beta *     x[i.S] )
+		D[ 2L,  2L] <<- if (m) -sigma - mu else -gamma - mu + beta * x[i.S]
+		D
+	}
+}
+
+seir.aggregate <-
+function (x, m, n)
+{
+	if (m <= 1L && n <= 1L)
+		x
+	else if (m == 0L) {
+		y <- x[, c(1L, 2L, (n + 2L):ncol(x))]
+		y[, 2L] <- rowSums(x[, 2L:(n + 1L)])
+		y
+	}
+	else {
+		y <- x[, c(1L, 2L, m + 2L, (m + n + 2L):ncol(x))]
+		if (m > 1L)
+			y[, 2L] <- rowSums(x[,      2L :(m     + 1L)])
+		if (n > 1L)
+			y[, 3L] <- rowSums(x[, (m + 2L):(m + n + 1L)])
+		y
+	}
+}
+
 sir <-
 function (length.out = 1L,
-          beta, nu, mu, gamma = 1, delta = 0,
-          init, n = 1L,
+          beta, nu = function (t) 0, mu = function (t) 0,
+          gamma = 1, delta = 0,
+          n = 1L, init,
           stochastic = TRUE, prob = 1, delay = 1,
-          useCompiled = TRUE, ...)
+          aggregate = FALSE, useCompiled = TRUE, ...)
 {
 	if (any(...names() == "m"))
 		stop(gettextf("call '%s', not '%s', when setting '%s'",
