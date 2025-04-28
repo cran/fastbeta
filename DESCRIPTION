@@ -1,6 +1,6 @@
 Package: fastbeta
-Version: 0.3.2
-Date: 2025-03-23
+Version: 0.4.0
+Date: 2025-04-28
 Title: Fast Approximation of Time-Varying Infectious Disease
         Transmission Rates
 Description: 
@@ -21,8 +21,8 @@ Imports: grDevices, graphics, stats
 Suggests: adaptivetau, deSolve, tools, utils
 BuildResaveData: no
 NeedsCompilation: yes
-Packaged: 2025-03-24 03:51:48 UTC; mikael
+Packaged: 2025-04-28 15:31:28 UTC; mikael
 Author: Mikael Jagan [aut, cre] (<https://orcid.org/0000-0002-3542-2938>)
 Maintainer: Mikael Jagan <jaganmn@mcmaster.ca>
 Repository: CRAN
-Date/Publication: 2025-03-24 04:10:02 UTC
+Date/Publication: 2025-04-28 16:30:05 UTC

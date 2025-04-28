@@ -12,7 +12,7 @@ then an error is signaled.
 }
 \usage{
 seir(length.out = 1L,
-     beta, nu = function(t) 0, mu = function(t) 0,
+     beta, nu = function (t) 0, mu = function (t) 0,
      sigma = 1, gamma = 1, delta = 0,
      m = 1L, n = 1L, init,
      stochastic = TRUE, prob = 1, delay = 1,
@@ -21,7 +21,7 @@ seir(length.out = 1L,
 ## A basic wrapper for the m=0L case:
 
  sir(length.out = 1L,
-     beta, nu = function(t) 0, mu = function(t) 0,
+     beta, nu = function (t) 0, mu = function (t) 0,
      gamma = 1, delta = 0,
      n = 1L, init,
      stochastic = TRUE, prob = 1, delay = 1,
@@ -156,8 +156,7 @@ intervals according to multinomial samples taken with probabilities
 \code{delay}.
 }
 \seealso{
-\code{\link{seir.auxiliary}}, \code{\link{seir.canonical}},
-\code{\link{seir.library}}.
+\code{\link{seir.auxiliary}}, \code{\link{seir.library}}.
 }
 \references{
 Cao, Y., Gillespie, D. T., & Petzold, L. R. (2007).
