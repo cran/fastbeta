@@ -1,52 +1,74 @@
-%% \section{Changes in version x.y.z (yyyy-mm-dd)}{
-%%   \subsection{Significant User-Visible Changes}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{Deprecated and Defunct}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{Bug Fixes}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{New Features}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{Installation}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{Documentation}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%%   \subsection{Internals}{
-%%     \itemize{
-%%       \item .
-%%     }
-%%   }
-%% }
-
 \name{NEWS}
 \title{News for \R{} Package \pkg{fastbeta}}
 \newcommand{\GH}{\href{https://github.com/davidearn/fastbeta/issues/#1}{GH##1}}
+\section{Changes in version 0.5.0 (2025-10-15)}{
+  \subsection{Significant User-Visible Changes}{
+    \itemize{
+      \item \code{sir.aoi(\dots, root = \var{function})} is a multiple
+      time series object storing the solution until the last root or
+      time point.  Attribute \code{root.info} stores details about the
+      system at the roots in the format \code{list(tau, state)}.
+      Previously, \code{sir.aoi} discarded the solution and returned
+      only details about the system at the first root.
 
+      \item \code{sir.aoi(\dots, root = \var{function})} no longer has
+      an attribute \code{curvature} storing the curvature of \code{Y} at
+      the root.
+    }
+  }
+  \subsection{Bug Fixes}{
+    \itemize{
+      \item The expression for \eqn{\text{d}Y/\text{d}\tau}{dY/dtau}
+      used by \code{sir.aoi} was wrong.
+    }
+  }
+  \subsection{New Features}{
+    \itemize{
+      \item \code{sir.aoi(\dots, aggregate = TRUE)} has additional
+      columns storing the force of infection, incidence, and the
+      curvature of \eqn{Y}.
+
+      \item \code{sir.aoi} accepts new argument \code{eps} in order to
+      support equations with equal, nonzero rates of birth and death.
+
+      \item \code{sir.aoi} accepts new arguments \code{F} and
+      \code{Fargs}, enabling the user to set a forcing function.
+
+      \item \code{sir.aoi} accepts new arguments \code{H} and
+      \code{Hargs}, enabling the user to set a susceptible
+      hetereogeneity function.
+
+      \item \code{sir.aoi} accepts new arguments \code{root.max} and
+      \code{root.break}, enabling the user to set the number of roots
+      sought and indicate whether the solver should stop once that
+      number of roots is reached.  The default behaviour is to stop once
+      one root is found and agrees with the previous behaviour.
+
+      \item \code{sir.aoi} accepts new argument \code{skip.Y} indicating
+      if solution of the equation for \eqn{Y} should not be attempted.
+
+      \item The method for generic function \code{summary} and class
+      \code{sir.aoi} accepts new argument \code{name}, enabling
+      approximation of tail exponents of different variables.
+
+      \item Function \code{cbind.ts} for working around \PR{18583}.
+
+      \item \code{deconvolve} accepts new argument \code{x.pad},
+      enabling the user to decide the value of the elements with which
+      \code{x} is padded when \code{start} is unset.
+
+      \item New data set \code{pneumonia}, used in an example of
+      \code{deconvolve} usage.
+    }
+  }
+}
 \section{Changes in version 0.4.0 (2025-04-28)}{
   \subsection{Deprecated and Defunct}{
     \itemize{
       \item \code{seir.canonical} is removed in favour of more general
-      \code{sir.aoi}.  The method for \code{summary} for class
-      \code{seir.canonical} is removed in favour of a method for class
-      \code{sir.aoi}.
+      \code{sir.aoi}.  The method for generic function \code{summary}
+      and class \code{seir.canonical} is removed in favour of a method
+      for class \code{sir.aoi}.
     }
   }
   \subsection{New Features}{
@@ -57,7 +79,6 @@
     }
   }
 }
-
 \section{Changes in version 0.3.2 (2025-03-23)}{
   \subsection{New Features}{
     \itemize{
@@ -67,12 +88,12 @@
       nondimensional parameters are the basic reproduction number and
       the ratio of the mean latent period and mean generation interval.
 
-      \item A method for \code{summary} approximating the tail exponents
-      of prevalence from the return value of \code{seir.canonical}.
+      \item A method for generic function \code{summary} and class
+      \code{seir.canonical} approximating the tail exponents of
+      prevalence.
     }
   }
 }
-
 \section{Changes in version 0.3.1 (2024-11-22)}{
   \subsection{Significant User-Visible Changes}{
     \itemize{
@@ -125,7 +146,6 @@
     }
   }
 }
-
 \section{Changes in version 0.3.0 (2024-05-17)}{
   \subsection{Significant User-Visible Changes}{
     \itemize{
@@ -177,7 +197,6 @@
     }
   }
 }
-
 \section{Changes in version 0.2.0 (2023-12-11)}{
   \subsection{Significant User-Visible Changes}{
     \itemize{
@@ -225,7 +244,6 @@
     }
   }
 }
-
 \section{Changes in version 0.1.1 (2023-11-28)}{
   \subsection{Bug Fixes}{
     \itemize{
@@ -252,3 +270,41 @@
     }
   }
 }
+
+%% \section{Changes in version x.y.z (yyyy-mm-dd)}{
+%%   \subsection{Significant User-Visible Changes}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{Deprecated and Defunct}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{Bug Fixes}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{New Features}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{Installation}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{Documentation}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%%   \subsection{Internals}{
+%%     \itemize{
+%%       \item .
+%%     }
+%%   }
+%% }
