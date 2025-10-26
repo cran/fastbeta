@@ -1,5 +1,5 @@
-ac3db05a840773a6907ffb2c1d5ed499 *DESCRIPTION
-346374de5e7960f5688ee8b67559171b *NAMESPACE
+d4f2fda067bbf9d4687ae016999a0b7e *DESCRIPTION
+15333631d36099147c8c9b3274c8f5c9 *NAMESPACE
 87d5e92db9126e8a9ab0c70d04e55b2c *R/aoi.R
 232c7001b18bca63bbc488088ed750d7 *R/cbind.ts.R
 25c882f12807e28a94e9eef5d7fc5500 *R/deconvolve.R
@@ -12,7 +12,7 @@ bb71d28857648d79df0e48928becc546 *data/datalist
 64504b177a374f4bdd7ab8901a857271 *data/seir.ts01.R
 659eb9f26b930cf150a36a27344770b5 *data/seir.ts02.R
 9e2b925aa86fdce88c779c222f7df1ff *data/smallpox.rda
-051801f39cce77f3185ce7a38b4589b8 *inst/NEWS.Rd
+6635268462a90e889671bc3a12b1113d *inst/NEWS.Rd
 724406ffea8c0dff0a6849b1bf34c565 *inst/de.R
 12273f55490038d8f086db0e594a94ca *inst/scripts/1918KeatCush-Chart2-SolidLine.csv
 cd9a2bc51b876d3dc933ce93f571a26d *inst/scripts/1979MoseBend-Figure1-Bars.csv
